@@ -8,22 +8,44 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+
     steps:
+      # 1️⃣ Checkout kernel source
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup build deps
-        run: sudo apt-get update && sudo apt-get install -y bc bison flex gcc clang lld make git
+      # 2️⃣ Install required packages
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison flex git make gcc clang lld \
+            libssl-dev build-essential
 
+      # 3️⃣ List available defconfigs
+      - name: List available defconfigs
+        run: |
+          echo "Available defconfigs:"
+          ls arch/arm64/configs | grep defconfig || true
+
+      # 4️⃣ Build kernel
       - name: Build kernel
         run: |
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CC=clang
+          export CROSS_COMPILE=aarch64-linux-gnu-
+
           mkdir -p out
-          make O=out ARCH=arm64 vendor/marble_defconfig
+          echo "Building kernel with marble_defconfig..."
+          make O=out ARCH=arm64 marble_defconfig
           make O=out ARCH=arm64 -j$(nproc)
 
+      # 5️⃣ Debug: check output files
       - name: Debug check files
         run: ls -R out/arch/arm64/boot || true
 
+      # 6️⃣ Upload build artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
