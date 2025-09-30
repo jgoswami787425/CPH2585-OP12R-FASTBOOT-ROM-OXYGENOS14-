@@ -1,0 +1,34 @@
+name: Kernel Build
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup build deps
+        run: sudo apt-get update && sudo apt-get install -y bc bison flex gcc clang lld make git
+
+      - name: Build kernel
+        run: |
+          mkdir -p out
+          make O=out ARCH=arm64 vendor/marble_defconfig
+          make O=out ARCH=arm64 -j$(nproc)
+
+      - name: Debug check files
+        run: ls -R out/arch/arm64/boot || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-build
+          path: |
+            out/arch/arm64/boot/Image*
+            out/arch/arm64/boot/dtbo.img
+            out/arch/arm64/boot/vendor_boot.img
