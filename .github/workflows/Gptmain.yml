@@ -22,18 +22,28 @@ jobs:
             bc bison flex git make gcc clang lld \
             libssl-dev build-essential
 
-      # 3️⃣ Detect first available defconfig
+      # 3️⃣ Detect Makefile folder
+      - name: Detect Makefile folder
+        id: detect_makefile
+        run: |
+          makefile_path=$(find . -name Makefile | head -n 1)
+          makefile_dir=$(dirname "$makefile_path")
+          echo "Detected Makefile directory: $makefile_dir"
+          echo "MAKEFILE_DIR=$makefile_dir" >> $GITHUB_ENV
+
+      # 4️⃣ Detect first available defconfig
       - name: Detect first available defconfig
         id: detect_defconfig
         run: |
           echo "Listing available defconfigs:"
-          defconfig_file=$(ls arch/arm64/configs | grep defconfig | head -n 1)
+          defconfig_file=$(ls $MAKEFILE_DIR/arch/arm64/configs | grep defconfig | head -n 1)
           echo "Detected defconfig: $defconfig_file"
           echo "DEFCONFIG=$defconfig_file" >> $GITHUB_ENV
 
-      # 4️⃣ Build kernel
+      # 5️⃣ Build kernel
       - name: Build kernel
         run: |
+          cd $MAKEFILE_DIR
           export ARCH=arm64
           export SUBARCH=arm64
           export CC=clang
@@ -44,16 +54,16 @@ jobs:
           make O=out ARCH=arm64 $DEFCONFIG
           make O=out ARCH=arm64 -j$(nproc)
 
-      # 5️⃣ Debug output
+      # 6️⃣ Debug output
       - name: Check output files
-        run: ls -R out/arch/arm64/boot || true
+        run: ls -R $MAKEFILE_DIR/out/arch/arm64/boot || true
 
-      # 6️⃣ Upload artifacts
+      # 7️⃣ Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: kernel-build
           path: |
-            out/arch/arm64/boot/Image*
-            out/arch/arm64/boot/dtbo.img
-            out/arch/arm64/boot/vendor_boot.img
+            $MAKEFILE_DIR/out/arch/arm64/boot/Image*
+            $MAKEFILE_DIR/out/arch/arm64/boot/dtbo.img
+            $MAKEFILE_DIR/out/arch/arm64/boot/vendor_boot.img
