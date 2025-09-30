@@ -1,4 +1,4 @@
-name: Kernel Build
+name: Kernel Build Auto
 
 on:
   push:
@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # 1️⃣ Checkout kernel source
+      # 1️⃣ Checkout source
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # 2️⃣ Install required packages
+      # 2️⃣ Install dependencies
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -22,13 +22,16 @@ jobs:
             bc bison flex git make gcc clang lld \
             libssl-dev build-essential
 
-      # 3️⃣ List available defconfigs
-      - name: List available defconfigs
+      # 3️⃣ Detect defconfig automatically
+      - name: Detect first available defconfig
+        id: detect_defconfig
         run: |
-          echo "Available defconfigs:"
-          ls arch/arm64/configs | grep defconfig || true
+          echo "Listing available defconfigs:"
+          defconfig_file=$(ls arch/arm64/configs | grep defconfig | head -n 1)
+          echo "Detected defconfig: $defconfig_file"
+          echo "DEFCONFIG=$defconfig_file" >> $GITHUB_ENV
 
-      # 4️⃣ Build kernel
+      # 4️⃣ Build kernel using detected defconfig
       - name: Build kernel
         run: |
           export ARCH=arm64
@@ -37,15 +40,15 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-gnu-
 
           mkdir -p out
-          echo "Building kernel with generic_auto_defconfig..."
-          make O=out ARCH=arm64 generic_auto_defconfig
+          echo "Building kernel with $DEFCONFIG..."
+          make O=out ARCH=arm64 $DEFCONFIG
           make O=out ARCH=arm64 -j$(nproc)
 
-      # 5️⃣ Debug: check output files
-      - name: Debug check files
+      # 5️⃣ Debug output
+      - name: Check output files
         run: ls -R out/arch/arm64/boot || true
 
-      # 6️⃣ Upload build artifacts
+      # 6️⃣ Upload artifacts
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
