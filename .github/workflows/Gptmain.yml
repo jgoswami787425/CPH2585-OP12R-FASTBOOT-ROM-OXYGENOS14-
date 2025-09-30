@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # 1️⃣ Checkout source
+      # 1️⃣ Checkout kernel source
       - name: Checkout source
         uses: actions/checkout@v4
 
@@ -22,7 +22,7 @@ jobs:
             bc bison flex git make gcc clang lld \
             libssl-dev build-essential
 
-      # 3️⃣ Detect defconfig automatically
+      # 3️⃣ Detect first available defconfig
       - name: Detect first available defconfig
         id: detect_defconfig
         run: |
@@ -31,7 +31,7 @@ jobs:
           echo "Detected defconfig: $defconfig_file"
           echo "DEFCONFIG=$defconfig_file" >> $GITHUB_ENV
 
-      # 4️⃣ Build kernel using detected defconfig
+      # 4️⃣ Build kernel
       - name: Build kernel
         run: |
           export ARCH=arm64
