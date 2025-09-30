@@ -37,8 +37,8 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-gnu-
 
           mkdir -p out
-          echo "Building kernel with marble_defconfig..."
-          make O=out ARCH=arm64 marble_defconfig
+          echo "Building kernel with generic_auto_defconfig..."
+          make O=out ARCH=arm64 generic_auto_defconfig
           make O=out ARCH=arm64 -j$(nproc)
 
       # 5️⃣ Debug: check output files
