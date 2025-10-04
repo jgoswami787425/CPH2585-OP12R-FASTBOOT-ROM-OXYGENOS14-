@@ -1,69 +1,56 @@
-name: Kernel Build Auto
+name: OnePlus 12R Kernel Build
 
+# Trigger build on push or manually
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
+  build-kernel:
+    runs-on: ubuntu-latest
+    env:
+      ARCH: arm64
+      CROSS_COMPILE: aarch64-linux-gnu-
 
     steps:
-      # 1️⃣ Checkout kernel source
-      - name: Checkout source
-        uses: actions/checkout@v4
+      # 1. Checkout kernel source
+      - name: Checkout kernel source
+        uses: actions/checkout@v3
 
-      # 2️⃣ Install dependencies
-      - name: Install dependencies
+      # 2. Install required dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            bc bison flex git make gcc clang lld \
-            libssl-dev build-essential
+          sudo apt-get install -y git bc bison flex libssl-dev build-essential gcc-aarch64-linux-gnu wget
 
-      # 3️⃣ Detect Makefile folder
-      - name: Detect Makefile folder
-        id: detect_makefile
-        run: |
-          makefile_path=$(find . -name Makefile | head -n 1)
-          makefile_dir=$(dirname "$makefile_path")
-          echo "Detected Makefile directory: $makefile_dir"
-          echo "MAKEFILE_DIR=$makefile_dir" >> $GITHUB_ENV
+      # 3. Set up output directory
+      - name: Setup output directory
+        run: mkdir -p out
 
-      # 4️⃣ Detect first available defconfig
-      - name: Detect first available defconfig
-        id: detect_defconfig
-        run: |
-          echo "Listing available defconfigs:"
-          defconfig_file=$(ls $MAKEFILE_DIR/arch/arm64/configs | grep defconfig | head -n 1)
-          echo "Detected defconfig: $defconfig_file"
-          echo "DEFCONFIG=$defconfig_file" >> $GITHUB_ENV
+      # 4. Load default kernel config (defconfig from your ROM)
+      - name: Load kernel config
+        run: make O=out ARCH=${ARCH} <defconfig_name>_defconfig
 
-      # 5️⃣ Build kernel
+      # 5. Optional: Interactive config (commented out)
+      # - name: Customize kernel
+      #   run: make O=out ARCH=${ARCH} menuconfig
+
+      # 6. Build kernel
       - name: Build kernel
+        run: make O=out -j$(nproc) ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
+
+      # 7. Collect the kernel image
+      - name: Collect kernel artifact
         run: |
-          cd $MAKEFILE_DIR
-          export ARCH=arm64
-          export SUBARCH=arm64
-          export CC=clang
-          export CROSS_COMPILE=aarch64-linux-gnu-
+          mkdir -p build_output
+          cp out/arch/arm64/boot/Image.gz-dtb build_output/
+          ls -lh build_output/
 
-          mkdir -p out
-          echo "Building kernel with $DEFCONFIG..."
-          make O=out ARCH=arm64 $DEFCONFIG
-          make O=out ARCH=arm64 -j$(nproc)
-
-      # 6️⃣ Debug output
-      - name: Check output files
-        run: ls -R $MAKEFILE_DIR/out/arch/arm64/boot || true
-
-      # 7️⃣ Upload artifacts
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      # 8. Upload the kernel build as artifact
+      - name: Upload kernel artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: kernel-build
-          path: |
-            $MAKEFILE_DIR/out/arch/arm64/boot/Image*
-            $MAKEFILE_DIR/out/arch/arm64/boot/dtbo.img
-            $MAKEFILE_DIR/out/arch/arm64/boot/vendor_boot.img
+          name: OnePlus12R-Kernel
+          path: build_output/
