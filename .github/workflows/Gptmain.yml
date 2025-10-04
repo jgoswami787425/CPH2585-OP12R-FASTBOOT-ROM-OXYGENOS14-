@@ -1,49 +1,41 @@
-name: OnePlus 12R Kernel Build Test
+name: Test Build Workflow
 
 on:
-  workflow_dispatch:        # Manual trigger se test
+  workflow_dispatch:
   push:
-    branches: ["main"]      # Optional, har push pe bhi run
+    branches: ["main"]
 
 jobs:
-  test-build:
+  build-test:
     runs-on: ubuntu-22.04
-    env:
-      ARCH: arm64
-      CROSS_COMPILE: aarch64-linux-gnu-
-      DEFCONFIG: allmodconfig  # Generic config for testing
 
     steps:
-      # 1️⃣ Checkout kernel source
-      - name: Checkout Kernel Source
-        run: |
-          git clone --depth=1 https://github.com/OnePlus12R-development/android_kernel_oneplus_sm8550.git kernel
+      # 1️⃣ Checkout repo (optional)
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       # 2️⃣ Install build dependencies
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex git make clang lld \
-            libssl-dev build-essential gcc-aarch64-linux-gnu wget
+          sudo apt-get install -y build-essential
 
-      # 3️⃣ Check if Makefile exists
-      - name: Check Makefile
+      # 3️⃣ Create a simple C program
+      - name: Create test program
         run: |
-          if [ -f kernel/Makefile ]; then
-            echo "Makefile found ✅"
-          else
-            echo "Makefile missing ❌"
-            exit 1
-          fi
+          echo '#include <stdio.h>\nint main(){printf("Hello GitHub Actions!\\n"); return 0;}' > test.c
 
-      # 4️⃣ Load kernel config (dry-run)
-      - name: Load kernel config
-        run: make O=out ARCH=${ARCH} ${DEFCONFIG} -C kernel
+      # 4️⃣ Compile the C program
+      - name: Compile test program
+        run: gcc test.c -o test
 
-      # 5️⃣ Dry-run build (fast check)
-      - name: Dry-run build
-        run: make O=out ARCH=${ARCH} -C kernel help
+      # 5️⃣ Run the compiled program
+      - name: Run test program
+        run: ./test
 
-      # 6️⃣ Confirm output folder
-      - name: Check output folder
-        run: ls -lh kernel/out || echo "Output folder not created yet"
+      # 6️⃣ Upload artifact (optional)
+      - name: Upload compiled binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-binary
+          path: test
