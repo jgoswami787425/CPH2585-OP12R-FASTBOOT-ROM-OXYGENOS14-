@@ -1,4 +1,4 @@
-name: Test Build Workflow
+name: Test C Program Build
 
 on:
   workflow_dispatch:
@@ -23,7 +23,14 @@ jobs:
       # 3️⃣ Create a simple C program
       - name: Create test program
         run: |
-          echo '#include <stdio.h>\nint main(){printf("Hello GitHub Actions!\\n"); return 0;}' > test.c
+          cat << 'EOF' > test.c
+          #include <stdio.h>
+
+          int main() {
+              printf("Hello GitHub Actions!\n");
+              return 0;
+          }
+          EOF
 
       # 4️⃣ Compile the C program
       - name: Compile test program
@@ -33,7 +40,7 @@ jobs:
       - name: Run test program
         run: ./test
 
-      # 6️⃣ Upload artifact (optional)
+      # 6️⃣ Upload compiled binary as artifact
       - name: Upload compiled binary
         uses: actions/upload-artifact@v4
         with:
