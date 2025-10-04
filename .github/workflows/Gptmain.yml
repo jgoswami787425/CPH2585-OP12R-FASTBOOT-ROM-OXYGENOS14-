@@ -11,7 +11,7 @@ jobs:
     env:
       ARCH: arm64
       CROSS_COMPILE: aarch64-linux-gnu-
-      DEFCONFIG: op12r_defconfig  # Update agar alag ho
+      DEFCONFIG: allmodconfig  # Generic config for testing
 
     steps:
       # 1️⃣ Checkout kernel source
@@ -36,11 +36,11 @@ jobs:
             exit 1
           fi
 
-      # 4️⃣ Load defconfig (dry-run)
-      - name: Load Kernel Config
+      # 4️⃣ Load kernel config (dry-run)
+      - name: Load kernel config
         run: make O=out ARCH=${ARCH} ${DEFCONFIG} -C kernel
 
-      # 5️⃣ Dry-run compile (fast check)
+      # 5️⃣ Dry-run build (fast check)
       - name: Dry-run build
         run: make O=out ARCH=${ARCH} -C kernel help
 
