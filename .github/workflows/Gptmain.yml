@@ -11,13 +11,19 @@ jobs:
     env:
       ARCH: arm64
       CROSS_COMPILE: aarch64-linux-gnu-
+      DEFCONFIG: op12r_defconfig   # <- Kernel defconfig, fix karo agar alag ho
 
     steps:
-      # 1️⃣ Checkout kernel source
-      - name: Checkout source
+      # 1️⃣ Checkout your ROM repo (optional, if needed)
+      - name: Checkout ROM repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Install dependencies
+      # 2️⃣ Checkout Kernel source
+      - name: Checkout OnePlus 12R Kernel
+        run: |
+          git clone --depth=1 https://github.com/OnePlus12R-development/android_kernel_oneplus_sm8550.git kernel
+
+      # 3️⃣ Install dependencies
       - name: Install build dependencies
         run: |
           sudo apt-get update
@@ -25,47 +31,29 @@ jobs:
             bc bison flex git make clang lld \
             libssl-dev build-essential gcc-aarch64-linux-gnu wget
 
-      # 3️⃣ Detect Makefile folder
-      - name: Detect Makefile folder
-        id: detect_makefile
-        run: |
-          makefile_path=$(find . -name Makefile | head -n 1)
-          makefile_dir=$(dirname "$makefile_path")
-          echo "Detected Makefile directory: $makefile_dir"
-          echo "MAKEFILE_DIR=$makefile_dir" >> $GITHUB_ENV
-
-      # 4️⃣ Detect first available defconfig
-      - name: Detect defconfig
-        id: detect_defconfig
-        run: |
-          echo "Listing available defconfigs:"
-          defconfig_file=$(ls $MAKEFILE_DIR/arch/arm64/configs | grep defconfig | head -n 1)
-          echo "Detected defconfig: $defconfig_file"
-          echo "DEFCONFIG=$defconfig_file" >> $GITHUB_ENV
+      # 4️⃣ Create output folder
+      - name: Setup output directory
+        run: mkdir -p kernel/out
 
       # 5️⃣ Load kernel config
-      - name: Load kernel config
-        run: make O=out ARCH=${ARCH} ${{ env.DEFCONFIG }}
+      - name: Load defconfig
+        run: make O=out ARCH=${ARCH} ${DEFCONFIG} -C kernel
 
       # 6️⃣ Build kernel
       - name: Build kernel
-        run: |
-          cd $MAKEFILE_DIR
-          mkdir -p out
-          make O=out ARCH=${ARCH} $DEFCONFIG
-          make O=out ARCH=${ARCH} -j$(nproc) CROSS_COMPILE=${CROSS_COMPILE}
+        run: make O=out ARCH=${ARCH} -C kernel -j$(nproc) CROSS_COMPILE=${CROSS_COMPILE}
 
       # 7️⃣ Check output files
-      - name: Check output files
-        run: ls -R $MAKEFILE_DIR/out/arch/arm64/boot || true
+      - name: Check output
+        run: ls -lh kernel/out/arch/arm64/boot/
 
       # 8️⃣ Collect artifacts
-      - name: Collect kernel artifact
+      - name: Collect kernel artifacts
         run: |
           mkdir -p build_output
-          cp $MAKEFILE_DIR/out/arch/arm64/boot/Image* build_output/
-          cp $MAKEFILE_DIR/out/arch/arm64/boot/dtbo.img build_output/ || true
-          cp $MAKEFILE_DIR/out/arch/arm64/boot/vendor_boot.img build_output/ || true
+          cp kernel/out/arch/arm64/boot/Image* build_output/ || true
+          cp kernel/out/arch/arm64/boot/dtbo.img build_output/ || true
+          cp kernel/out/arch/arm64/boot/vendor_boot.img build_output/ || true
           ls -lh build_output/
 
       # 9️⃣ Upload artifacts
