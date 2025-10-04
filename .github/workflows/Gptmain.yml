@@ -1,48 +1,54 @@
-name: Test C Program Build
+name: OnePlus 12R Kernel Rebuild
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["main"]
+    inputs:
+      defconfig:
+        description: 'Kernel defconfig (default: op12r_defconfig)'
+        required: false
+        default: op12r_defconfig
 
 jobs:
-  build-test:
+  build-kernel:
     runs-on: ubuntu-22.04
+    env:
+      ARCH: arm64
+      CROSS_COMPILE: aarch64-linux-gnu-
 
     steps:
-      # 1️⃣ Checkout repo (optional)
-      - name: Checkout repo
+      # 1️⃣ Checkout full kernel source
+      - name: Checkout Kernel Source
         uses: actions/checkout@v4
 
-      # 2️⃣ Install build dependencies
-      - name: Install dependencies
+      # 2️⃣ Install dependencies
+      - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential
+          sudo apt-get install -y bc bison flex git make clang lld \
+            libssl-dev build-essential gcc-aarch64-linux-gnu wget
 
-      # 3️⃣ Create a simple C program
-      - name: Create test program
-        run: |
-          cat << 'EOF' > test.c
-          #include <stdio.h>
+      # 3️⃣ Create output directory
+      - name: Setup output folder
+        run: mkdir -p out
 
-          int main() {
-              printf("Hello GitHub Actions!\n");
-              return 0;
-          }
-          EOF
+      # 4️⃣ Load defconfig
+      - name: Load Kernel Config
+        run: make O=out ARCH=${ARCH} ${{ github.event.inputs.defconfig }} -C .
 
-      # 4️⃣ Compile the C program
-      - name: Compile test program
-        run: gcc test.c -o test
+      # 5️⃣ Build kernel
+      - name: Build Kernel
+        run: make O=out ARCH=${ARCH} -j$(nproc) -C .
 
-      # 5️⃣ Run the compiled program
-      - name: Run test program
-        run: ./test
+      # 6️⃣ Check output
+      - name: List Kernel Output
+        run: ls -lh out/arch/arm64/boot || true
 
-      # 6️⃣ Upload compiled binary as artifact
-      - name: Upload compiled binary
+      # 7️⃣ Upload artifacts
+      - name: Upload Kernel Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-binary
-          path: test
+          name: OnePlus12R-Kernel
+          path: |
+            out/arch/arm64/boot/Image*
+            out/arch/arm64/boot/dtbo.img
+            out/arch/arm64/boot/vendor_boot.img
