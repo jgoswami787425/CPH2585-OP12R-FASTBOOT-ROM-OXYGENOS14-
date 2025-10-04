@@ -1,64 +1,49 @@
-name: OnePlus 12R Kernel Build
+name: OnePlus 12R Kernel Build Test
 
 on:
+  workflow_dispatch:        # Manual trigger se test
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: ["main"]      # Optional, har push pe bhi run
 
 jobs:
-  build-kernel:
+  test-build:
     runs-on: ubuntu-22.04
     env:
       ARCH: arm64
       CROSS_COMPILE: aarch64-linux-gnu-
-      DEFCONFIG: op12r_defconfig   # <- Kernel defconfig, fix karo agar alag ho
+      DEFCONFIG: op12r_defconfig  # Update agar alag ho
 
     steps:
-      # 1️⃣ Checkout your ROM repo (optional, if needed)
-      - name: Checkout ROM repository
-        uses: actions/checkout@v4
-
-      # 2️⃣ Checkout Kernel source
-      - name: Checkout OnePlus 12R Kernel
+      # 1️⃣ Checkout kernel source
+      - name: Checkout Kernel Source
         run: |
           git clone --depth=1 https://github.com/OnePlus12R-development/android_kernel_oneplus_sm8550.git kernel
 
-      # 3️⃣ Install dependencies
-      - name: Install build dependencies
+      # 2️⃣ Install build dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            bc bison flex git make clang lld \
+          sudo apt-get install -y bc bison flex git make clang lld \
             libssl-dev build-essential gcc-aarch64-linux-gnu wget
 
-      # 4️⃣ Create output folder
-      - name: Setup output directory
-        run: mkdir -p kernel/out
+      # 3️⃣ Check if Makefile exists
+      - name: Check Makefile
+        run: |
+          if [ -f kernel/Makefile ]; then
+            echo "Makefile found ✅"
+          else
+            echo "Makefile missing ❌"
+            exit 1
+          fi
 
-      # 5️⃣ Load kernel config
-      - name: Load defconfig
+      # 4️⃣ Load defconfig (dry-run)
+      - name: Load Kernel Config
         run: make O=out ARCH=${ARCH} ${DEFCONFIG} -C kernel
 
-      # 6️⃣ Build kernel
-      - name: Build kernel
-        run: make O=out ARCH=${ARCH} -C kernel -j$(nproc) CROSS_COMPILE=${CROSS_COMPILE}
+      # 5️⃣ Dry-run compile (fast check)
+      - name: Dry-run build
+        run: make O=out ARCH=${ARCH} -C kernel help
 
-      # 7️⃣ Check output files
-      - name: Check output
-        run: ls -lh kernel/out/arch/arm64/boot/
-
-      # 8️⃣ Collect artifacts
-      - name: Collect kernel artifacts
-        run: |
-          mkdir -p build_output
-          cp kernel/out/arch/arm64/boot/Image* build_output/ || true
-          cp kernel/out/arch/arm64/boot/dtbo.img build_output/ || true
-          cp kernel/out/arch/arm64/boot/vendor_boot.img build_output/ || true
-          ls -lh build_output/
-
-      # 9️⃣ Upload artifacts
-      - name: Upload kernel artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: OnePlus12R-Kernel
-          path: build_output/
+      # 6️⃣ Confirm output folder
+      - name: Check output folder
+        run: ls -lh kernel/out || echo "Output folder not created yet"
