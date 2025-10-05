@@ -1,54 +1,44 @@
-name: OnePlus 12R Kernel Rebuild
+name: Build Custom ROM
 
 on:
   workflow_dispatch:
-    inputs:
-      defconfig:
-        description: 'Kernel defconfig (default: op12r_defconfig)'
-        required: false
-        default: op12r_defconfig
 
 jobs:
-  build-kernel:
+  build:
     runs-on: ubuntu-22.04
-    env:
-      ARCH: arm64
-      CROSS_COMPILE: aarch64-linux-gnu-
-
     steps:
-      # 1️⃣ Checkout full kernel source
-      - name: Checkout Kernel Source
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # 2️⃣ Install dependencies
-      - name: Install Build Dependencies
+      - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y bc bison flex git make clang lld \
-            libssl-dev build-essential gcc-aarch64-linux-gnu wget
+          sudo apt update
+          sudo apt install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib \
+            libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z-dev ccache libgl1-mesa-dev \
+            libxml2-utils xsltproc unzip fontconfig python-is-python3
 
-      # 3️⃣ Create output directory
-      - name: Setup output folder
-        run: mkdir -p out
+      - name: Sync ROM source
+        run: |
+          mkdir rom && cd rom
+          repo init -u https://github.com/LineageOS/android.git -b lineage-21
+          repo sync -j$(nproc)
 
-      # 4️⃣ Load defconfig
-      - name: Load Kernel Config
-        run: make O=out ARCH=${ARCH} ${{ github.event.inputs.defconfig }} -C .
+      - name: Clone device, vendor, kernel trees
+        run: |
+          cd rom
+          git clone https://github.com/YourName/device_xiaomi_codename device/xiaomi/codename
+          git clone https://github.com/YourName/vendor_xiaomi_codename vendor/xiaomi/codename
+          git clone https://github.com/YourName/kernel_xiaomi_codename kernel/xiaomi/codename
 
-      # 5️⃣ Build kernel
-      - name: Build Kernel
-        run: make O=out ARCH=${ARCH} -j$(nproc) -C .
+      - name: Build ROM
+        run: |
+          cd rom
+          source build/envsetup.sh
+          lunch lineage_codename-userdebug
+          make bacon -j$(nproc)
 
-      # 6️⃣ Check output
-      - name: List Kernel Output
-        run: ls -lh out/arch/arm64/boot || true
-
-      # 7️⃣ Upload artifacts
-      - name: Upload Kernel Artifacts
+      - name: Upload Output
         uses: actions/upload-artifact@v4
         with:
-          name: OnePlus12R-Kernel
-          path: |
-            out/arch/arm64/boot/Image*
-            out/arch/arm64/boot/dtbo.img
-            out/arch/arm64/boot/vendor_boot.img
+          name: rom-output
+          path: rom/out/target/product/codename/*.zip
